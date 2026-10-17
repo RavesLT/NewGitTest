@@ -792,7 +792,12 @@ function renderTargetsPreview() {
     <div>Protein<b>${t.protein.goal} g</b></div><div>Carbs<b>${t.carbs.goal} g</b></div>
     <div>Fat<b>${t.fat.goal} g</b></div><div>Fiber<b>${t.fiber.goal} g</b></div>`;
 }
-$("#profileForm").addEventListener("input", renderTargetsPreview);
+// Save as you type, so leaving Settings without tapping "Save goal" doesn't lose anything.
+$("#profileForm").addEventListener("input", () => {
+  state.profile = { ...state.profile, ...readProfileForm() };
+  save();
+  renderTargetsPreview();
+});
 $("#profileForm").addEventListener("submit", (e) => {
   e.preventDefault();
   state.profile = { ...state.profile, ...readProfileForm() };
@@ -859,5 +864,12 @@ $("#nextDay").addEventListener("click", () => {
     return;
   }
   renderToday();
-  if (!hasProfile()) go("settings");
+  // Ask the browser to keep our data even when the phone is low on space.
+  try { navigator.storage?.persist?.(); } catch {}
+  // Only send brand-new users to Settings, and only once.
+  if (!hasProfile() && !state.seenSetup) {
+    state.seenSetup = true;
+    save();
+    go("settings");
+  }
 })();
