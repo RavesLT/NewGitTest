@@ -1,9 +1,9 @@
-import Anthropic from "@anthropic-ai/sdk";
 import express, { type NextFunction, type Request, type Response } from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { analyzeMeal, coachAdvice, estimateMissing } from "./ai.js";
+import { analyzeMeal, coachAdvice, estimateMissing, provider } from "./ai.js";
 import { NUTRIENTS } from "./nutrients.js";
+import { UserFacingError } from "./prompts.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -24,10 +24,7 @@ const wrap =
   (fn: (req: Request, res: Response) => Promise<void>) => (req: Request, res: Response) =>
     fn(req, res).catch((err: unknown) => {
       console.error(err);
-      let msg = err instanceof Error ? err.message : "Something went wrong";
-      if (err instanceof Anthropic.AuthenticationError) msg = "Server's Anthropic API key is missing or invalid.";
-      else if (err instanceof Anthropic.RateLimitError) msg = "Rate limited by the AI service. Try again in a minute.";
-      else if (err instanceof Anthropic.APIError) msg = `AI service error (${err.status}). Try again.`;
+      const msg = err instanceof UserFacingError ? err.message : "Something went wrong. Please try again.";
       res.status(500).json({ error: msg });
     });
 
@@ -126,5 +123,7 @@ app.post(
 );
 
 const port = Number(process.env.PORT) || 3000;
-if (!process.env.ANTHROPIC_API_KEY) console.warn("Warning: ANTHROPIC_API_KEY is not set – food analysis will fail until you set it.");
+console.log(`AI provider: ${provider}`);
+if (!process.env.GEMINI_API_KEY && !process.env.ANTHROPIC_API_KEY)
+  console.warn("Warning: set GEMINI_API_KEY (free) or ANTHROPIC_API_KEY – food analysis won't work without one.");
 app.listen(port, () => console.log(`Fuel tracker running on http://localhost:${port}`));

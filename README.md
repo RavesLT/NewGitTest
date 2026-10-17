@@ -4,9 +4,9 @@ A phone-friendly food tracker for **gaining muscle**. Log food by **voice, text,
 
 ## What it does
 
-- **Voice or text** – tap 🎤 and say "3 eggs scrambled in butter, 2 slices sourdough, a glass of whole milk". Claude splits it into items and estimates every nutrient.
-- **Photo** – snap your plate (or a nutrition label). Claude identifies each food and estimates portions. Add a note like "cooked in olive oil" for better accuracy.
-- **Barcode** – scan a package; values come from the product label via [Open Food Facts](https://world.openfoodfacts.org). Nutrients the label doesn't list are estimated by Claude (the label always wins).
+- **Voice or text** – tap 🎤 and say "3 eggs scrambled in butter, 2 slices sourdough, a glass of whole milk". The AI splits it into items and estimates every nutrient.
+- **Photo** – snap your plate (or a nutrition label). The AI identifies each food and estimates portions. Add a note like "cooked in olive oil" for better accuracy.
+- **Barcode** – scan a package; values come from the product label via [Open Food Facts](https://world.openfoodfacts.org). Nutrients the label doesn't list are estimated by the AI (the label always wins).
 - **Review before saving** – every item shows its grams; change them and nutrients rescale. Rough guesses are flagged.
 - **Muscle-gain targets** – Mifflin-St Jeor maintenance + your chosen surplus (+250/+400/+600 kcal), protein 1.6–2.2 g/kg, fat ~27%, carbs fill the rest, plus RDA targets for vitamins and minerals.
 - **Coach** – "What should I eat next?" suggests foods to close today's protein, calorie and nutrient gaps.
@@ -15,32 +15,40 @@ A phone-friendly food tracker for **gaining muscle**. Log food by **voice, text,
 
 Your log is stored on your phone (browser storage). Use **Settings → Export backup** now and then.
 
-## Run it
+## Run it for free
 
-Needs Node 20+ and an Anthropic API key (https://console.anthropic.com).
+The app works with **Google Gemini (free tier)** or **Anthropic Claude (paid)**. It uses Gemini when `GEMINI_API_KEY` is set.
+
+1. Get a free Gemini API key at https://aistudio.google.com/apikey (no card needed).
+2. Run it:
 
 ```bash
 npm install
-ANTHROPIC_API_KEY=sk-ant-... npm start
+GEMINI_API_KEY=your-key npm start
 # open http://localhost:3000
 ```
 
-Optional environment variables:
+On the free tier Gemini has a daily request limit. If the main model's limit runs out, the app automatically switches to the lighter Flash-Lite model, which has a bigger free allowance. Note: on the free tier Google may use your requests (including food photos) to improve its products.
 
 | Variable | Purpose |
 |---|---|
-| `APP_PASSWORD` | Require a password (enter it in the app's Settings) so others can't use your API credits |
-| `CLAUDE_MODEL` | Override the model (default `claude-opus-5-5`) |
+| `GEMINI_API_KEY` | Free Gemini key – uses Gemini when set |
+| `GEMINI_MODEL` / `GEMINI_FALLBACK_MODEL` | Override models (default `gemini-flash-latest` / `gemini-flash-lite-latest`) |
+| `ANTHROPIC_API_KEY` | Use Claude instead (paid) – only used when no Gemini key is set |
+| `CLAUDE_MODEL` | Override the Claude model (default `claude-opus-5-5`) |
+| `APP_PASSWORD` | Require a password (enter it in the app's Settings) so others can't use your quota |
 | `PORT` | Port (default 3000) |
 
-## Use it on your phone
+## Use it on your phone (free)
 
-Camera and microphone need **HTTPS**, so host it somewhere like Render, Railway or Fly.io:
+Camera and microphone need **HTTPS**, so host it on [Render](https://render.com)'s free plan:
 
-1. Create a new **Web Service** from this repo.
-2. Build command `npm install`, start command `npm start`.
-3. Set `ANTHROPIC_API_KEY` and `APP_PASSWORD`.
+1. Sign in to Render with GitHub → **New → Web Service** → pick this repo.
+2. Build command `npm install`, start command `npm start`, instance type **Free**.
+3. Add environment variables `GEMINI_API_KEY` and `APP_PASSWORD`.
 4. Open the URL on your phone → browser menu → **Add to Home Screen**.
+
+The free Render plan sleeps after ~15 minutes idle, so the first open after a break takes about a minute.
 
 Voice works in Chrome (Android) and Safari (iOS). If your browser doesn't support it, use the 🎤 on your keyboard.
 
@@ -53,6 +61,7 @@ Voice works in Chrome (Android) and Safari (iOS). If your browser doesn't suppor
 ## Code
 
 - `src/server.ts` – Express server: `/api/analyze` (text/photo), `/api/barcode/:code`, `/api/coach`
-- `src/ai.ts` – Claude calls with structured JSON output
+- `src/ai.ts` – picks Gemini or Claude; `src/gemini.ts` and `src/claude.ts` hold each backend
+- `src/prompts.ts` – prompts and JSON output schemas shared by both
 - `src/nutrients.ts` – the list of tracked nutrients
 - `public/` – the app (plain HTML/CSS/JS, no build step)
