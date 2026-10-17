@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Fuel Tracker</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <header class="top">
+    <button class="icon-btn" id="prevDay" aria-label="Previous day">‹</button>
+    <div class="date" id="dateLabel">Today</div>
+    <button class="icon-btn" id="nextDay" aria-label="Next day">›</button>
+  </header>
+
+  <main>
+    <!-- TODAY -->
+    <section id="view-today" class="view active">
+      <div class="card hero">
+        <div class="ring-wrap">
+          <svg viewBox="0 0 120 120" class="ring">
+            <circle cx="60" cy="60" r="52" class="ring-bg" />
+            <circle cx="60" cy="60" r="52" class="ring-fg" id="calRing" />
+          </svg>
+          <div class="ring-text">
+            <div class="big" id="calEaten">0</div>
+            <div class="muted" id="calTarget">of 0 kcal</div>
+          </div>
+        </div>
+        <div class="macros" id="macroBars"></div>
+      </div>
+
+      <div class="card" id="setupHint" hidden>
+        <b>Set up your goal first.</b>
+        <p class="muted">Add your weight, height and age in Settings so targets match your muscle-gain plan.</p>
+        <button class="btn" data-goto="settings">Open settings</button>
+      </div>
+
+      <div id="meals"></div>
+
+      <div class="card">
+        <div class="row-between">
+          <h3>What should I eat next?</h3>
+          <button class="btn small" id="coachBtn">Ask coach</button>
+        </div>
+        <p class="muted" id="coachText">Get suggestions to close today's protein, calorie and nutrient gaps.</p>
+      </div>
+
+      <details class="card" id="microCard">
+        <summary><h3>All nutrients</h3><span class="muted" id="microSummary"></span></summary>
+        <div id="microList"></div>
+      </details>
+    </section>
+
+    <!-- PROGRESS -->
+    <section id="view-progress" class="view">
+      <div class="card">
+        <h3>Body weight</h3>
+        <div class="row">
+          <input type="number" inputmode="decimal" step="0.1" id="weightInput" placeholder="Today's weight (kg)" />
+          <button class="btn" id="saveWeight">Save</button>
+        </div>
+        <div id="weightChart" class="chart"></div>
+        <p class="muted" id="weightTrend"></p>
+      </div>
+      <div class="card">
+        <h3>Last 14 days</h3>
+        <div class="legend"><span class="sw cal"></span>Calories <span class="sw pro"></span>Protein (% of target)</div>
+        <div id="historyChart" class="chart"></div>
+        <div id="historyAvg" class="muted"></div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="view-settings" class="view">
+      <form class="card form" id="profileForm">
+        <h3>Your goal: gain muscle</h3>
+        <label>Sex
+          <select name="sex"><option value="male">Male</option><option value="female">Female</option></select>
+        </label>
+        <label>Age <input name="age" type="number" inputmode="numeric" min="13" max="100" /></label>
+        <label>Height (cm) <input name="height" type="number" inputmode="decimal" min="100" max="250" /></label>
+        <label>Weight (kg) <input name="weight" type="number" inputmode="decimal" step="0.1" min="30" max="300" /></label>
+        <label>Activity
+          <select name="activity">
+            <option value="1.2">Desk job, little exercise</option>
+            <option value="1.375">Light: training 1-3 days/week</option>
+            <option value="1.55">Moderate: training 3-5 days/week</option>
+            <option value="1.725">Very active: training 6-7 days/week</option>
+            <option value="1.9">Athlete / physical job + training</option>
+          </select>
+        </label>
+        <label>Gain pace
+          <select name="surplus">
+            <option value="250">Lean bulk (+250 kcal, ~0.25 kg/week)</option>
+            <option value="400">Standard (+400 kcal, ~0.4 kg/week)</option>
+            <option value="600">Fast (+600 kcal, more fat gain)</option>
+          </select>
+        </label>
+        <label>Protein (g per kg body weight)
+          <select name="proteinPerKg">
+            <option value="1.6">1.6 – minimum effective</option>
+            <option value="1.8">1.8</option>
+            <option value="2.0">2.0 – recommended</option>
+            <option value="2.2">2.2 – upper useful range</option>
+          </select>
+        </label>
+        <label>Calorie target override (optional)
+          <input name="calOverride" type="number" inputmode="numeric" placeholder="Leave empty to auto-calculate" />
+        </label>
+        <div class="targets" id="targetsPreview"></div>
+        <button class="btn" type="submit">Save goal</button>
+      </form>
+
+      <div class="card form">
+        <h3>App access</h3>
+        <label>App password (only if the server sets one)
+          <input id="pwInput" type="password" autocomplete="current-password" />
+        </label>
+        <button class="btn" id="savePw">Save password</button>
+      </div>
+
+      <div class="card form">
+        <h3>Your data</h3>
+        <p class="muted">Everything is stored on this phone. Back it up now and then.</p>
+        <div class="row">
+          <button class="btn ghost" id="exportBtn">Export backup</button>
+          <label class="btn ghost file-btn">Import backup<input type="file" id="importInput" accept="application/json" hidden /></label>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <button class="fab" id="addBtn" aria-label="Log food">＋</button>
+
+  <nav class="tabs">
+    <button data-goto="today" class="active">Today</button>
+    <button data-goto="progress">Progress</button>
+    <button data-goto="settings">Settings</button>
+  </nav>
+
+  <!-- ADD FOOD SHEET -->
+  <div class="sheet" id="addSheet" hidden>
+    <div class="sheet-body">
+      <div class="row-between">
+        <h2>Log food</h2>
+        <button class="icon-btn" data-close aria-label="Close">✕</button>
+      </div>
+
+      <div id="inputStep">
+        <div class="input-wrap">
+          <textarea id="foodText" rows="3" placeholder="e.g. 3 eggs scrambled in butter, 2 slices sourdough, 300 ml whole milk"></textarea>
+          <button class="mic" id="micBtn" aria-label="Speak">🎤</button>
+        </div>
+        <p class="muted small" id="micStatus"></p>
+        <div class="source-row">
+          <label class="source">📷<span>Photo</span><input type="file" id="photoInput" accept="image/*" capture="environment" hidden /></label>
+          <label class="source">🖼️<span>Gallery</span><input type="file" id="galleryInput" accept="image/*" hidden /></label>
+          <button class="source" id="scanBtn">▥<span>Barcode</span></button>
+        </div>
+        <div id="photoPreview" hidden><img id="photoImg" alt="Meal photo" /><button class="link" id="clearPhoto">Remove photo</button></div>
+        <button class="btn wide" id="analyzeBtn">Analyze</button>
+
+        <div id="recentWrap" hidden>
+          <h3>Quick add (recent)</h3>
+          <div id="recentList" class="chips"></div>
+        </div>
+      </div>
+
+      <div id="scanStep" hidden>
+        <div id="reader"></div>
+        <div class="row">
+          <input id="manualCode" inputmode="numeric" placeholder="Or type barcode number" />
+          <button class="btn" id="lookupBtn">Look up</button>
+        </div>
+        <button class="link" id="backFromScan">← Back</button>
+      </div>
+
+      <div id="reviewStep" hidden>
+        <p class="muted" id="reviewNotes"></p>
+        <div id="reviewItems"></div>
+        <label class="meal-pick">Meal
+          <select id="mealSelect">
+            <option>Breakfast</option><option>Lunch</option><option>Dinner</option><option>Snack</option><option>Pre/Post workout</option>
+          </select>
+        </label>
+        <div class="review-total" id="reviewTotal"></div>
+        <button class="btn wide" id="saveItems">Add to log</button>
+        <button class="link" id="backFromReview">← Start over</button>
+      </div>
+
+      <div id="loading" hidden><div class="spinner"></div><p id="loadingText">Analyzing…</p></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+  <script src="app.js" type="module"></script>
+</body>
+</html>
