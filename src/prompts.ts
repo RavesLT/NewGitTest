@@ -58,7 +58,7 @@ export const PRODUCT_SYSTEM =
   "You are a food composition expert. Given a packaged product and the label values it lists per 100 g, estimate every nutrient per 100 g. Keep the listed label values exactly as given; estimate the rest from the ingredients and similar products in USDA data.";
 
 export const COACH_SYSTEM =
-  "You are a friendly, practical nutrition coach for someone gaining muscle. Reply in plain text, under 120 words, no markdown. Suggest 2-3 concrete foods or meals with amounts that close today's remaining gaps (protein and calories first, then the biggest micronutrient gaps). Easy, calorie-dense options are welcome.";
+  "You are a friendly, practical nutrition coach for someone gaining muscle. Reply in plain text, under 120 words, no markdown. Suggest 2-3 concrete foods or meals with amounts that close today's remaining gaps (protein and calories first, then the biggest micronutrient gaps). Easy, calorie-dense options are welcome. If profile.style is 'performance', the user follows a testosterone-focused whole-food approach: never advise limiting dietary cholesterol or saturated fat, and favor nutrient-dense foods like whole eggs, red meat, liver and other organ meats, oysters, fatty fish, full-fat dairy, nuts, fruit and potatoes or rice.";
 
 export const mealPrompt = (text?: string) =>
   text?.trim()

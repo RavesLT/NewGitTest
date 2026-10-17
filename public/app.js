@@ -99,7 +99,9 @@ function computeTargets(p = state.profile) {
   const tdee = bmr * activity;
   const calories = Number(p.calOverride) || Math.round((tdee + surplus) / 10) * 10;
   const protein = Math.round(weight * ppk);
-  const fat = Math.round((calories * 0.27) / 9);
+  const performance = (p.style || "performance") === "performance";
+  // Very low-fat diets are linked to lower testosterone, so performance mode keeps fat higher.
+  const fat = Math.round((calories * (performance ? 0.35 : 0.27)) / 9);
   const carbs = Math.max(0, Math.round((calories - protein * 4 - fat * 9) / 4));
 
   const t = {
@@ -121,7 +123,21 @@ function computeTargets(p = state.profile) {
       t[k] = { goal };
     }
   }
-  return { ...t, _tdee: Math.round(tdee) };
+  if (performance) {
+    // No caps on cholesterol (testosterone's building block) or saturated fat; tracked for info only.
+    delete t.cholesterol;
+    delete t.saturated_fat;
+    t.sodium = { limit: 4000 }; // training + sweat raises needs
+    // Hormone-supporting nutrients set above the basic RDA, still well under safe upper limits.
+    const male = sex === "male";
+    t.vitamin_d = { goal: 50 }; // 2000 IU
+    t.zinc = { goal: male ? 20 : 12 };
+    t.magnesium = { goal: male ? 500 : 400 };
+    t.omega3 = { goal: 2.5 };
+    t.selenium = { goal: 100 };
+    t.choline = { goal: male ? 600 : 500 };
+  }
+  return { ...t, _tdee: Math.round(tdee), _style: performance ? "performance" : "standard" };
 }
 
 // ---------- totals ----------
@@ -285,7 +301,7 @@ $("#coachBtn").addEventListener("click", async () => {
       body: JSON.stringify({
         remaining,
         eatenToday: entriesOn(currentDate).map((e) => `${e.name} (${e.portion})`),
-        profile: { goal: "gain muscle", sex: state.profile.sex, weightKg: state.profile.weight, timeNow: new Date().toLocaleTimeString() },
+        profile: { goal: "gain muscle", style: computeTargets()._style, sex: state.profile.sex, weightKg: state.profile.weight, timeNow: new Date().toLocaleTimeString() },
       }),
     });
     $("#coachText").textContent = advice;
@@ -664,7 +680,7 @@ $("#saveWeight").addEventListener("click", () => {
 // ---------- settings ----------
 function fillProfileForm() {
   const f = $("#profileForm");
-  const p = { sex: "male", activity: "1.55", surplus: "400", proteinPerKg: "2.0", ...state.profile };
+  const p = { style: "performance", sex: "male", activity: "1.55", surplus: "400", proteinPerKg: "2.0", ...state.profile };
   for (const el of f.elements) if (el.name && p[el.name] != null) el.value = p[el.name];
   renderTargetsPreview();
   $("#pwInput").value = state.password || "";
