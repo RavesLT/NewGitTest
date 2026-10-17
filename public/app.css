@@ -180,3 +180,11 @@ details summary h3 { margin: 0; }
   position: fixed; left: 50%; bottom: calc(150px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 20;
   background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; max-width: 90vw;
 }
+.badge.ev { background: rgba(37,99,235,.12); color: var(--accent-2); cursor: pointer; }
+.habits { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin-top: 6px; }
+.habits label { font-size: 13px; color: var(--muted); }
+.habits label input[type=number] { margin-top: 4px; }
+.habits .check { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 14px; }
+.habits .check input { width: 20px; height: 20px; accent-color: var(--accent); }
+#suppWrap { margin-top: 18px; }
+.chip small { color: var(--muted); }

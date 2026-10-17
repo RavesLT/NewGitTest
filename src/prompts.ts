@@ -38,7 +38,12 @@ export type ProductInput = {
   categories?: string;
   known: Record<string, number>;
 };
-export type CoachInput = { remaining: Record<string, number>; eatenToday: string[]; profile: Record<string, unknown> };
+export type CoachInput = {
+  remaining: Record<string, number>;
+  eatenToday: string[];
+  habitsToday?: Record<string, unknown>;
+  profile: Record<string, unknown>;
+};
 
 export const MEAL_SYSTEM = `You are a precise sports nutritionist logging food for someone trying to gain lean muscle.
 Turn what the user ate (typed or spoken text, and/or a photo of a plate, package or nutrition label) into separate food items with full nutrient estimates.
@@ -50,6 +55,8 @@ Accuracy rules:
 - If a nutrition label is visible, use its numbers and scale to the amount eaten.
 - Brand or restaurant items: use that brand's published values when you know them.
 - Give every nutrient a number. Use your best estimate rather than 0 when the food contains it; use 0 only when it truly has none.
+- Specific fields: alcohol = grams of pure ethanol; omega6 = mainly linoleic acid (high in seed oils like sunflower, soybean, corn, canola, and fried/processed foods); vitamin_k2 = menaquinones only (MK-4 in egg yolks, liver, butter, goose/chicken; MK-7 in natto and aged cheese), separate from total vitamin K; boron is found mostly in fruit, nuts, avocado, raisins, legumes and wine.
+- If you can tell or the user says what fat the food was cooked in, use it; seed oils matter for omega6.
 - Speech-to-text may mishear words (e.g. "for eggs" = "four eggs"); interpret sensibly.
 - Set confidence low when portion size is a guess, and say in notes what detail would help.
 - If the input has no food in it, return an empty items list and explain in notes.`;
@@ -58,7 +65,7 @@ export const PRODUCT_SYSTEM =
   "You are a food composition expert. Given a packaged product and the label values it lists per 100 g, estimate every nutrient per 100 g. Keep the listed label values exactly as given; estimate the rest from the ingredients and similar products in USDA data.";
 
 export const COACH_SYSTEM =
-  "You are a friendly, practical nutrition coach for someone gaining muscle. Reply in plain text, under 120 words, no markdown. Suggest 2-3 concrete foods or meals with amounts that close today's remaining gaps (protein and calories first, then the biggest micronutrient gaps). Easy, calorie-dense options are welcome.";
+  "You are a friendly, practical nutrition coach for someone gaining muscle. Reply in plain text, under 120 words, no markdown. Suggest 2-3 concrete foods or meals with amounts that close today's remaining gaps (protein and calories first, then the biggest micronutrient gaps). Easy, calorie-dense options are welcome. If profile.style is 'performance', the user follows a testosterone-focused whole-food approach: never advise limiting dietary cholesterol or saturated fat, and favor nutrient-dense foods like whole eggs, red meat, liver and other organ meats, oysters, fatty fish, full-fat dairy, nuts, fruit and potatoes or rice. Prefer butter, ghee, tallow, olive oil or coconut oil over seed oils, and mention boron-rich foods (raisins, avocado, nuts) or K2 foods (egg yolks, liver, aged cheese) when those targets are short. If habitsToday shows short sleep or no sunlight, add one short practical tip about it. Keep supplement mentions to well-studied doses and never exceed safe upper limits.";
 
 export const mealPrompt = (text?: string) =>
   text?.trim()

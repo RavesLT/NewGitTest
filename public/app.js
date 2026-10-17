@@ -13,9 +13,9 @@ let photo = null; // { media_type, data, url }
 function load() {
   try {
     const s = JSON.parse(localStorage.getItem(STORE_KEY));
-    if (s && Array.isArray(s.entries)) return { profile: {}, weights: [], password: "", ...s };
+    if (s && Array.isArray(s.entries)) return { profile: {}, weights: [], habits: {}, password: "", ...s };
   } catch {}
-  return { profile: {}, entries: [], weights: [], password: "" };
+  return { profile: {}, entries: [], weights: [], habits: {}, password: "" };
 }
 function save() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
@@ -81,6 +81,22 @@ const MICRO_TARGETS = {
   choline: { male: 550, female: 425 },
 };
 
+// How strong the testosterone/performance case is for each target, shown as a small tag.
+const EVIDENCE = {
+  fat: ["meta-analysis", "Low-fat diets linked to ~10-15% lower testosterone (small trials)"],
+  vitamin_d: ["strong if low", "Raises T mainly when you're deficient – get blood levels checked"],
+  zinc: ["strong if low", "Deficiency lowers T; extra helps mainly if you're low"],
+  magnesium: ["moderate", "Linked to higher free T, especially in athletes"],
+  selenium: ["moderate", "Needed for sperm and testosterone production"],
+  omega3: ["moderate", "Supports recovery and hormone health"],
+  omega6: ["biohacker", "Seed-oil avoidance – popular, human evidence still limited"],
+  boron: ["experimental", "One small study: 6-10 mg/day raised free T in a week"],
+  vitamin_k2: ["experimental", "Animal data on testosterone; good for bones and arteries"],
+  cholesterol: ["no cap", "Testosterone is made from cholesterol; US dropped the cap in 2015"],
+  alcohol: ["solid", "Heavy drinking clearly lowers testosterone"],
+  choline: ["moderate", "Eggs and liver – supports nerves and liver"],
+};
+
 function hasProfile() {
   const p = state.profile;
   return p.weight && p.height && p.age;
@@ -99,7 +115,9 @@ function computeTargets(p = state.profile) {
   const tdee = bmr * activity;
   const calories = Number(p.calOverride) || Math.round((tdee + surplus) / 10) * 10;
   const protein = Math.round(weight * ppk);
-  const fat = Math.round((calories * 0.27) / 9);
+  const performance = (p.style || "performance") === "performance";
+  // Very low-fat diets are linked to lower testosterone, so performance mode keeps fat higher.
+  const fat = Math.round((calories * (performance ? 0.35 : 0.27)) / 9);
   const carbs = Math.max(0, Math.round((calories - protein * 4 - fat * 9) / 4));
 
   const t = {
@@ -121,7 +139,28 @@ function computeTargets(p = state.profile) {
       t[k] = { goal };
     }
   }
-  return { ...t, _tdee: Math.round(tdee) };
+  if (performance) {
+    // No caps on cholesterol (testosterone's building block) or saturated fat; tracked for info only.
+    delete t.cholesterol;
+    delete t.saturated_fat;
+    t.sodium = { limit: 4000 }; // training + sweat raises needs
+    // Hormone-supporting nutrients set above the basic RDA, still well under safe upper limits.
+    const male = sex === "male";
+    t.vitamin_d = { goal: 50 }; // 2000 IU
+    t.zinc = { goal: male ? 20 : 12 };
+    t.magnesium = { goal: male ? 500 : 400 };
+    t.omega3 = { goal: 2.5 };
+    t.selenium = { goal: 100 };
+    t.choline = { goal: male ? 600 : 500 };
+    // Biohacker additions (evidence is thinner – see EVIDENCE labels)
+    t.omega6 = { limit: Math.round((calories * 0.03) / 9) }; // seed-oil fats under ~3% of calories
+    t.boron = { goal: 6 };
+    t.vitamin_k2 = { goal: 150 };
+    t.alcohol = { limit: 14 }; // ~1 drink
+  } else {
+    t.alcohol = { limit: 28 }; // ~2 drinks
+  }
+  return { ...t, _tdee: Math.round(tdee), _style: performance ? "performance" : "standard" };
 }
 
 // ---------- totals ----------
@@ -172,7 +211,7 @@ function renderToday() {
   $("#macroBars").innerHTML = macro("protein", "Protein", "g") + macro("carbs", "Carbs", "g") + macro("fat", "Fat", "g");
 
   // Meals
-  const order = ["Breakfast", "Lunch", "Dinner", "Snack", "Pre/Post workout"];
+  const order = ["Breakfast", "Lunch", "Dinner", "Snack", "Pre/Post workout", "Supplements"];
   const groups = {};
   for (const e of entries) (groups[e.meal] ||= []).push(e);
   const mealNames = Object.keys(groups).sort((a, b) => order.indexOf(a) - order.indexOf(b));
@@ -196,11 +235,42 @@ function renderToday() {
     : `<div class="card"><p class="muted">Nothing logged ${currentDate === todayStr() ? "yet today" : "this day"}. Tap ＋ to speak, type, scan or snap your food.</p></div>`;
 
   renderMicros(tot, targets);
+  renderHabits(tot);
 }
+
+// ---------- habits ----------
+const HABIT_TIPS = [
+  ["sleep", (h) => Number(h.sleep) >= 7, "Sleep 7-9 h – one week of 5 h nights cut testosterone 10-15% in a study."],
+  ["trained", (h) => h.trained, "Lift heavy compound moves (squat, deadlift, press) – resistance training supports testosterone."],
+  ["sun", (h) => Number(h.sun) >= 20, "Get 20-60 min of daylight, ideally morning – vitamin D and circadian rhythm (correlational)."],
+  ["cold", (h) => h.cold, "Cold shower or plunge – popular for energy and recovery; direct testosterone evidence is weak."],
+];
+function renderHabits(tot) {
+  const h = state.habits[currentDate] || {};
+  for (const el of $$("[data-habit]")) {
+    const v = h[el.dataset.habit];
+    if (el.type === "checkbox") el.checked = Boolean(v);
+    else el.value = v ?? "";
+  }
+  const done = HABIT_TIPS.filter(([, ok]) => ok(h)).length;
+  $("#habitScore").textContent = `${done}/${HABIT_TIPS.length}`;
+  const next = HABIT_TIPS.find(([, ok]) => !ok(h));
+  let tip = next ? next[2] : "All habits done today – great work.";
+  if (tot && tot.alcohol > 28) tip = "Heavy drinking today – alcohol is one of the clearest testosterone killers. Hydrate and sleep well.";
+  $("#habitTip").textContent = tip;
+}
+$("#habitsCard").addEventListener("change", (e) => {
+  const el = e.target.closest("[data-habit]");
+  if (!el) return;
+  const h = (state.habits[currentDate] ||= {});
+  h[el.dataset.habit] = el.type === "checkbox" ? el.checked : el.value === "" ? undefined : Number(el.value);
+  save();
+  renderHabits(totalsFor(entriesOn(currentDate)));
+});
 
 function renderMicros(tot, targets) {
   const groups = [
-    ["macro", "Carbs & fiber"],
+    ["macro", "Carbs, fiber & alcohol"],
     ["fat", "Fats"],
     ["mineral", "Minerals"],
     ["vitamin", "Vitamins"],
@@ -225,15 +295,29 @@ function renderMicros(tot, targets) {
             right += ` · max ${t.limit}`;
             bar = `<div class="bar ${p > 100 ? "over" : ""}"><i style="width:${Math.min(100, p)}%"></i></div>`;
           }
-          return `<div class="micro"><span>${esc(n.label)}</span><span class="muted">${right}</span>${bar}</div>`;
+          const ev = targets._style === "performance" && EVIDENCE[n.key];
+          const tag = ev ? ` <span class="badge ev" data-tip="${esc(ev[1])}">${ev[0]}</span>` : "";
+          return `<div class="micro"><span>${esc(n.label)}${tag}</span><span class="muted">${right}</span>${bar}</div>`;
         })
         .join("");
-      return `<div class="micro-group"><h4>${title}</h4>${rows}</div>`;
+      let extra = "";
+      if (g === "fat" && targets._style === "performance" && tot.omega3 > 0) {
+        const r = tot.omega6 / tot.omega3;
+        extra = `<div class="micro"><span>Omega-6 : 3 ratio <span class="badge ev" data-tip="Ancestral diets were near 1-4:1; typical Western diets are 15-20:1">biohacker</span></span>
+          <span class="muted">${r.toFixed(1)} : 1 · aim ≤ 4 : 1</span><div class="bar ${r <= 4 ? "ok" : "over"}"><i style="width:${Math.min(100, (r / 4) * 100)}%"></i></div></div>`;
+      }
+      return `<div class="micro-group"><h4>${title}</h4>${rows}${extra}</div>`;
     })
     .join("");
   $("#microList").innerHTML = html;
   $("#microSummary").textContent = `${met}/${counted} targets met`;
 }
+
+// Tap an evidence tag to see what it means
+$("#microList").addEventListener("click", (e) => {
+  const tip = e.target.closest("[data-tip]")?.dataset.tip;
+  if (tip) toast(tip, 5000);
+});
 
 // Tap an entry to change the amount or delete it
 $("#meals").addEventListener("click", (ev) => {
@@ -285,7 +369,8 @@ $("#coachBtn").addEventListener("click", async () => {
       body: JSON.stringify({
         remaining,
         eatenToday: entriesOn(currentDate).map((e) => `${e.name} (${e.portion})`),
-        profile: { goal: "gain muscle", sex: state.profile.sex, weightKg: state.profile.weight, timeNow: new Date().toLocaleTimeString() },
+        habitsToday: state.habits[currentDate] || {},
+        profile: { goal: "gain muscle", style: computeTargets()._style, sex: state.profile.sex, weightKg: state.profile.weight, timeNow: new Date().toLocaleTimeString() },
       }),
     });
     $("#coachText").textContent = advice;
@@ -301,6 +386,7 @@ function openSheet() {
   $("#addSheet").hidden = false;
   showStep("input");
   $("#mealSelect").value = guessMeal();
+  renderSupplements();
   renderRecent();
 }
 function closeSheet() {
@@ -331,6 +417,31 @@ function guessMeal() {
 $("#addBtn").addEventListener("click", openSheet);
 $("#addSheet").addEventListener("click", (e) => {
   if (e.target.id === "addSheet" || e.target.closest("[data-close]")) closeSheet();
+});
+
+// One-tap supplements. Nutrients count toward your targets.
+const SUPPLEMENTS = [
+  { name: "Vitamin D3", portion: "2000 IU", n: { vitamin_d: 50 } },
+  { name: "Vitamin K2 (MK-7)", portion: "100 mcg", n: { vitamin_k2: 100, vitamin_k: 100 } },
+  { name: "Zinc", portion: "15 mg", n: { zinc: 15 } },
+  { name: "Magnesium glycinate", portion: "200 mg elemental", n: { magnesium: 200 } },
+  { name: "Fish oil", portion: "2 caps (~1.2 g EPA+DHA)", n: { omega3: 1.2, fat: 2, poly_fat: 1.4, calories: 18 } },
+  { name: "Boron", portion: "6 mg", n: { boron: 6 } },
+  { name: "Creatine", portion: "5 g", n: {} },
+  { name: "Ashwagandha (KSM-66)", portion: "600 mg", n: {} },
+  { name: "Tongkat ali", portion: "400 mg", n: {} },
+  { name: "Whey protein", portion: "1 scoop (30 g)", grams: 30, n: { calories: 120, protein: 24, carbs: 3, fat: 1.5, sugar: 2, calcium: 120, potassium: 150, sodium: 50 } },
+];
+function renderSupplements() {
+  $("#suppList").innerHTML = SUPPLEMENTS.map((x, i) => `<button class="chip" data-supp="${i}">${esc(x.name)} <small>${esc(x.portion)}</small></button>`).join("");
+}
+$("#suppList").addEventListener("click", (ev) => {
+  const i = ev.target.closest("[data-supp]")?.dataset.supp;
+  if (i == null) return;
+  const x = SUPPLEMENTS[i];
+  pending = [{ name: x.name, portion: x.portion, grams: x.grams || 1, confidence: "high", nutrients: { ...emptyTotals(), ...x.n }, source: "supplement" }];
+  showReview("Supplement – nutrients count toward today's targets.");
+  $("#mealSelect").value = "Supplements";
 });
 
 // Recent foods for one-tap re-logging
@@ -664,7 +775,7 @@ $("#saveWeight").addEventListener("click", () => {
 // ---------- settings ----------
 function fillProfileForm() {
   const f = $("#profileForm");
-  const p = { sex: "male", activity: "1.55", surplus: "400", proteinPerKg: "2.0", ...state.profile };
+  const p = { style: "performance", sex: "male", activity: "1.55", surplus: "400", proteinPerKg: "2.0", ...state.profile };
   for (const el of f.elements) if (el.name && p[el.name] != null) el.value = p[el.name];
   renderTargetsPreview();
   $("#pwInput").value = state.password || "";
@@ -707,7 +818,7 @@ $("#importInput").addEventListener("change", async (e) => {
     const data = JSON.parse(await e.target.files[0].text());
     if (!Array.isArray(data.entries)) throw new Error();
     if (!confirm(`Replace current data with backup (${data.entries.length} entries)?`)) return;
-    state = { profile: {}, weights: [], password: state.password, ...data };
+    state = { profile: {}, weights: [], habits: {}, password: state.password, ...data };
     save();
     fillProfileForm();
     renderToday();
